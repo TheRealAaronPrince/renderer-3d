@@ -18,8 +18,8 @@ public class projection
 	public float angX = 0, angY = 0, angZ = 0;
 	private float aspect = 0;
 	private float nearClip = 0.001f, farClip = 25f;
-	private float ambient = 0.5f;
-	private int background = 6;
+	private float ambient = 1f/32f;
+	private float background = 0.5f;
 	private float scale = 2;
 	public float fov = 45;
 	public import import = new import();
@@ -63,7 +63,6 @@ public class projection
 		var projA = perspective(camA);
 		var projB = perspective(camB);
 		var projC = perspective(camC);
-		
 		//calculating the normal vector
 		var camAB = Vector.vecSub(projB,projA);
 		var camAC = Vector.vecSub(projC,projA);
@@ -112,16 +111,22 @@ public class projection
 		}
 		//coloring
 		float colorMult = (Math.Abs(faces[face][8]));
-		if(colorMult < tris[Convert.ToInt32(faces[face][9]),13])
-		{
-			colorMult = tris[Convert.ToInt32(faces[face][9]),13];
-		}
 		float R1 = tris[Convert.ToInt32(faces[face][9]),9];
 		float G1 = tris[Convert.ToInt32(faces[face][9]),10];
 		float B1 = tris[Convert.ToInt32(faces[face][9]),11];
-		float R2 = (R1*colorMult)+((((import.bgR*background)+R1)/(background+1))*ambient);
-		float G2 = (G1*colorMult)+((((import.bgG*background)+G1)/(background+1))*ambient);
-		float B2 = (B1*colorMult)+((((import.bgB*background)+B1)/(background+1))*ambient);
+		float Ra = ((import.bgR*(1-colorMult)*background)+ambient)/2f;
+		float Ga = ((import.bgG*(1-colorMult)*background)+ambient)/2f;
+		float Ba = ((import.bgB*(1-colorMult)*background)+ambient)/2f;
+		float R2 = (((R1*colorMult)+Ra));
+		float G2 = (((G1*colorMult)+Ga));
+		float B2 = (((B1*colorMult)+Ba));
+		if(colorMult < tris[Convert.ToInt32(faces[face][9]),13])
+		{
+			colorMult = tris[Convert.ToInt32(faces[face][9]),13];
+			R2 = (R1*colorMult);
+			G2 = (G1*colorMult);
+			B2 = (B1*colorMult);
+		}
 		if(R2 > 1)
 		{
 			R2 = 1;
