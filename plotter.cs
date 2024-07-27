@@ -132,8 +132,8 @@ namespace plotter_2D
 						{
 							byte *index = pointer +  (((y * Pwidth) + x) * 4);
 							*(index + 0) = (byte)((*(index + 0)*(1-O))+(B*O));
-							*(index + 1) = (byte)((*(index + 0)*(1-O))+(G*O));
-							*(index + 2) = (byte)((*(index + 0)*(1-O))+(R*O));
+							*(index + 1) = (byte)((*(index + 1)*(1-O))+(G*O));
+							*(index + 2) = (byte)((*(index + 2)*(1-O))+(R*O));
 						}
 						Cx1 -= Dy12;
 						Cx2 -= Dy23;
