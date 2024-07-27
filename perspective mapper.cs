@@ -114,9 +114,9 @@ public class projection
 		float R1 = tris[Convert.ToInt32(faces[face][9]),9];
 		float G1 = tris[Convert.ToInt32(faces[face][9]),10];
 		float B1 = tris[Convert.ToInt32(faces[face][9]),11];
-		float Ra = ((import.bgR*(1-colorMult)*background)+ambient)/2f;
-		float Ga = ((import.bgG*(1-colorMult)*background)+ambient)/2f;
-		float Ba = ((import.bgB*(1-colorMult)*background)+ambient)/2f;
+		float Ra = ((import.bgR*(1-colorMult)*background)+ambient*R1)/2f;
+		float Ga = ((import.bgG*(1-colorMult)*background)+ambient*G1)/2f;
+		float Ba = ((import.bgB*(1-colorMult)*background)+ambient*B1)/2f;
 		float R2 = (((R1*colorMult)+Ra));
 		float G2 = (((G1*colorMult)+Ga));
 		float B2 = (((B1*colorMult)+Ba));
