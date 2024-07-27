@@ -1,11 +1,11 @@
-﻿
-using System;
+﻿using System.Runtime.InteropServices;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using System.ComponentModel;
 using System.Drawing;
 using System.Linq;
-using System.Threading.Tasks;
 using graphics;
+using System;
 
 namespace plotter_2D
 {
@@ -82,14 +82,8 @@ namespace plotter_2D
 				render.update();
 			}
 		}
-		public void triangle(long Xa, long Ya, long Xb, long Yb, long Xc, long Yc, byte R = 255, byte G = 255, byte B = 255, float O = 1)
+		public void triangle(long x1, long y1, long x2, long y2, long x3, long y3, byte R = 255, byte G = 255, byte B = 255, float O = 1)
 		{
-			long y1 = Ya;
-			long y2 = Yb;
-			long y3 = Yc;
-			long x1 = Xa;
-			long x2 = Xb;
-			long x3 = Xc;
 			// Deltas
 			long Dx12 = x1 - x2;
 			long Dx23 = x2 - x3;
@@ -98,8 +92,8 @@ namespace plotter_2D
 			long Dy23 = y2 - y3;
 			long Dy31 = y3 - y1;
 			// Bounding rectangle
-			long[] xVal = new long[] {Xa,Xb,Xc};
-			long[] yVal = new long[] {Ya,Yb,Yc};
+			long[] xVal = new long[] {x1,x2,x3};
+			long[] yVal = new long[] {y1,y2,y3};
 			long minx = xVal.Min();
 			long maxx = xVal.Max();
 			long miny = yVal.Min();
@@ -117,37 +111,42 @@ namespace plotter_2D
 			long Cx1 = 0;
 			long Cx2 = 0;
 			long Cx3 = 0;
-			// Scan through bounding rectangle
-			for(long i = 0; i < area; i++)
+			unsafe
 			{
-				long relx = i%w;
-				long rely = i/w;
-				long x = relx + minx;
-				long y = rely + miny;
-				// Start value for horizontal scan
-				if(relx == 0)
+				fixed(byte *pointer = render.pixelBuffer)
 				{
-					Cx1 = Cy1;
-					Cx2 = Cy2;
-					Cx3 = Cy3;	
+					for(long i = 0; i < area; i++)
+					{
+						long relx = i%w;
+						long rely = i/w;
+						long x = relx + minx;
+						long y = rely + miny;
+						// Start value for horizontal scan
+						if(relx == 0)
+						{
+							Cx1 = Cy1;
+							Cx2 = Cy2;
+							Cx3 = Cy3;	
+						}
+						if(x >= 0 && y >= 0 && x < Pwidth && y < Pheight && Cx1 >= 0 && Cx2 >= 0 && Cx3 >= 0)
+						{
+							byte *index = pointer +  (((y * Pwidth) + x) * 4);
+							*(index + 0) = (byte)((*(index + 0)*(1-O))+(B*O));
+							*(index + 1) = (byte)((*(index + 0)*(1-O))+(G*O));
+							*(index + 2) = (byte)((*(index + 0)*(1-O))+(R*O));
+						}
+						Cx1 -= Dy12;
+						Cx2 -= Dy23;
+						Cx3 -= Dy31;
+						if(relx == w-1)
+						{
+							Cy1 += Dx12;
+							Cy2 += Dx23;
+							Cy3 += Dx31;
+						}
+					}
 				}
-				if(Cx1 >= 0 && Cx2 >= 0 && Cx3 >= 0 && x >= 0 && y >= 0 && x < Pwidth && y < Pheight)
-				{
-					render.pixelBuffer[(((y * render.width) + x) * 4) + 0] = (byte)((render.pixelBuffer[(((y * render.width) + x) * 4) + 0]*(1-O))+(B*O));
-					render.pixelBuffer[(((y * render.width) + x) * 4) + 1] = (byte)((render.pixelBuffer[(((y * render.width) + x) * 4) + 1]*(1-O))+(G*O));
-					render.pixelBuffer[(((y * render.width) + x) * 4) + 2] = (byte)((render.pixelBuffer[(((y * render.width) + x) * 4) + 2]*(1-O))+(R*O));
-					render.pixelBuffer[(((y * render.width) + x) * 4) + 3] = 255;
-				}
-				Cx1 -= Dy12;
-				Cx2 -= Dy23;
-				Cx3 -= Dy31;
-				if(relx == w-1)
-				{
-					Cy1 += Dx12;
-					Cy2 += Dx23;
-					Cy3 += Dx31;
-				}
-			}
+			};
 		}
 	}
 }

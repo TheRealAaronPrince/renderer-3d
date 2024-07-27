@@ -7,6 +7,7 @@ using plotter_2D;
 
 public class projection
 {
+	private int TriangleBounds = 3;
 	public Plotter vector;
 	private float[,] tris;
 	private bool loaded = false;
@@ -17,11 +18,12 @@ public class projection
 	public float angX = 0, angY = 0, angZ = 0;
 	private float aspect = 0;
 	private float nearClip = 0.001f, farClip = 25f;
-	private float ambient = 0.25f;
+	private float ambient = 0.5f;
 	private int background = 6;
 	private float scale = 2;
 	public float fov = 45;
 	public import import = new import();
+	public Vector Vector = new Vector();
 	public projection(int w, int h)
 	{
 		 vector = new Plotter(w,h);
@@ -37,7 +39,7 @@ public class projection
 		}
 		vector.render.clearImg(Convert.ToInt32(import.bgR*255),Convert.ToInt32(import.bgG*255),Convert.ToInt32(import.bgB*255));
 		Parallel.For(0,count,w => { projectTri(w);});
-		faces = faces.OrderByDescending(entry => entry[9]).ToArray();
+		faces = faces.OrderByDescending(entry => entry[6]).ToArray();
 		for(int i = 0; i < count; i++)
 		{
 			drawTri(i,fill);
@@ -46,27 +48,34 @@ public class projection
 	}
 	private void projectTri(int face = 0)
 	{
+		var position =  new Tuple<float,float,float>(camX,camY,camZ);
 		//defining tuples for ease of passing data between functions
 		var point1 = new Tuple<float,float,float>(tris[face,0],tris[face,1],tris[face,2]);
 		var point2 = new Tuple<float,float,float>(tris[face,3],tris[face,4],tris[face,5]);
 		var point3 = new Tuple<float,float,float>(tris[face,6],tris[face,7],tris[face,8]);
 		//transforming the 3d space into a 2d projection
-		var transformA = (rotate(rotate(rotate(translate(rotate(rotate(rotate(point1,5),4),3)),2),1),0));
-		var transformB = (rotate(rotate(rotate(translate(rotate(rotate(rotate(point2,5),4),3)),2),1),0));
-		var transformC = (rotate(rotate(rotate(translate(rotate(rotate(rotate(point3,5),4),3)),2),1),0));
-		var projA = perspective(transformA);
-		var projB = perspective(transformB);
-		var projC = perspective(transformC);
+		var transformA = rotate(rotate(rotate(point1,5),4),3);
+		var transformB = rotate(rotate(rotate(point2,5),4),3);
+		var transformC = rotate(rotate(rotate(point3,5),4),3);
+		var camA = rotate(rotate(rotate(Vector.vecSub(transformA,position),2),1),0);
+		var camB = rotate(rotate(rotate(Vector.vecSub(transformB,position),2),1),0);
+		var camC  =rotate(rotate(rotate(Vector.vecSub(transformC,position),2),1),0);
+		var projA = perspective(camA);
+		var projB = perspective(camB);
+		var projC = perspective(camC);
+		
 		//calculating the normal vector
-		var vecAB = vecSub(transformB,transformA);
-		var vecAC = vecSub(transformC,transformA);
-		var vecN = unit(vecCross(vecAB,vecAC));
-		var luma = unit(new Tuple<float,float,float>(-3,5,3));
-		float D = vecDot(vecN,luma);
-		var position =  new Tuple<float,float,float>(camX,camY,camZ);
-		var direction = vecSub(centroid(projA,projB,projC),position);
-		float distance = centroid(projA,projB,projC).Item3;
-		float K = vecDot(unit(direction),vecN);
+		var camAB = Vector.vecSub(projB,projA);
+		var camAC = Vector.vecSub(projC,projA);
+		var camN = Vector.unit(Vector.vecCross(camAB,camAC));
+		var lumAB = Vector.vecSub(transformB,transformA);
+		var lumAC = Vector.vecSub(transformC,transformA);
+		var lumN = Vector.unit(Vector.vecCross(lumAB,lumAC));
+		var luma = Vector.unit(new Tuple<float,float,float>(-2,5,3));
+		float D = Vector.vecDot(lumN,luma);
+		var direction = Vector.vecSub(Vector.centroid(camA,camB,camC),position);
+		float distance = Vector.centroid(camA,camB,camC).Item3;
+		float K = Vector.vecDot(Vector.unit(direction),camN);
 		faces[face] = new float[] {
 			projA.Item1,
 			projA.Item2,
@@ -135,10 +144,10 @@ public class projection
 		byte edgeG = Convert.ToByte(255-faceG);
 		byte edgeB = Convert.ToByte(255-faceB);
 		//backface culling
-		if(faces[face][7] <= 1.1)
+		if(faces[face][7] < 1)
 		{
 			//checking if triangle is within screen bounds
-			if(Math.Abs(faces[face][0]) < 2 && Math.Abs(faces[face][1]) < 2 && Math.Abs(faces[face][2]) < 2 && Math.Abs(faces[face][3]) < 2 && Math.Abs(faces[face][4]) < 2 && Math.Abs(faces[face][5]) < 2 && faces[face][6] > nearClip && faces[face][6] < farClip)
+			if(faces[face][6] > nearClip && faces[face][6] < farClip && Math.Abs(faces[face][0]) < TriangleBounds && Math.Abs(faces[face][1]) < TriangleBounds && Math.Abs(faces[face][2]) < TriangleBounds && Math.Abs(faces[face][3]) < TriangleBounds && Math.Abs(faces[face][4]) < TriangleBounds && Math.Abs(faces[face][5]) < TriangleBounds)
 			{
 				if(fill)
 				{
@@ -209,195 +218,7 @@ public class projection
 				angle = 0f;
 				break;
 		}
-		var output = matMult(point,rotMatrix(angle,axis%3));
-		return output;
-	}
-	private Tuple<float,float,float> rotobj(Tuple<float,float,float> point, int axis)
-	{
-		float X = point.Item1;
-		float Y = point.Item2;
-		float Z = point.Item3;
-		float angleX = (float)(angX * (Math.PI/180));
-		float angleY = (float)(angY * (Math.PI/180));
-		float angleZ = (float)(angZ * (Math.PI/180));
-		float Xtrans = X;
-		float Ytrans = Y;
-		float Ztrans = Z;
-		switch (axis)
-		{
-			case 0:
-				Ytrans = (float)(Y*Math.Cos(angleX) - Z*Math.Sin(angleX));
-				Ztrans = (float)(Y*Math.Sin(angleX) + Z*Math.Cos(angleX));
-				break;
-			case 1:
-				Xtrans = (float)(X*Math.Cos(angleY) + Z*Math.Sin(angleY));
-				Ztrans = (float)(Z*Math.Cos(angleY) - X*Math.Sin(angleY));
-				break;
-			case 2:
-				Xtrans = (float)(X*Math.Cos(angleZ) - Y*Math.Sin(angleZ));
-				Ytrans = (float)(X*Math.Sin(angleZ) + Y*Math.Cos(angleZ));
-				break;
-			default:
-				
-				break;
-		}
-		var output = new Tuple<float,float,float>(Xtrans,Ytrans,Ztrans);
-		return output;
-	}
-	private Tuple<float,float,float> translate(Tuple<float,float,float> point)
-	{
-		float X = point.Item1;
-		float Y = point.Item2;
-		float Z = point.Item3;
-		float Xtrans = X-camX;
-		float Ytrans = Y-camY;
-		float Ztrans = Z-camZ;
-		var output = new Tuple<float,float,float>(Xtrans,Ytrans,Ztrans);
-		return output;
-	}
-	private float[,] rotMatrix(float theta, int axis)
-	{
-		float[,] matrix;
-		switch(axis)
-		{
-			case 0:
-			{
-				matrix = new float[,]
-				{{1,0,0},{0,(float)Math.Cos(theta),-(float)Math.Sin(theta)},{0,(float)Math.Sin(theta),(float)Math.Cos(theta)}};
-				break;
-			}
-			case 1:
-			{
-				matrix = new float[,]
-				{{(float)Math.Cos(theta),0,(float)Math.Sin(theta)},{0,1,0},{-(float)Math.Sin(theta),0,(float)Math.Cos(theta)}};
-				break;
-			}
-			case 2:
-			{
-				matrix = new float[,]
-				{{(float)Math.Cos(theta),-(float)Math.Sin(theta),0},{(float)Math.Sin(theta),(float)Math.Cos(theta),0},{0,0,1}};
-				break;
-			}
-			default:
-			{
-				matrix = new float[,]
-				{{1,0,0},{0,1,0},{0,0,1}};
-				break;
-			}
-		}
-		return matrix;
-	}
-	private Tuple<float,float,float> matMult(Tuple<float,float,float> point, float[,] matrix)
-	{
-		float X = point.Item1;
-		float Y = point.Item2;
-		float Z = point.Item3;
-		float Xtrans = (matrix[0,0]*X)+(matrix[0,1]*Y)+(matrix[0,2]*Z);
-		float Ytrans = (matrix[1,0]*X)+(matrix[1,1]*Y)+(matrix[1,2]*Z);
-		float Ztrans = (matrix[2,0]*X)+(matrix[2,1]*Y)+(matrix[2,2]*Z);
-		var output = new Tuple<float,float,float>(Xtrans,Ytrans,Ztrans);
-		return output;
-	}
-	private float vecDot(Tuple<float,float,float> A, Tuple<float,float,float> B)
-	{
-		float AX = A.Item1;
-		float AY = A.Item2;
-		float AZ = A.Item3;
-		float BX = B.Item1;
-		float BY = B.Item2;
-		float BZ = B.Item3;
-		var output = AX*BX+AY*BY+AZ+BZ;
-		return output;
-	}
-	private Tuple<float,float,float> vecCross(Tuple<float,float,float> A, Tuple<float,float,float> B)
-	{
-		float AX = A.Item1;
-		float AY = A.Item2;
-		float AZ = A.Item3;
-		float BX = B.Item1;
-		float BY = B.Item2;
-		float BZ = B.Item3;
-		float Xtrans = AY*BZ-BY*AZ;
-		float Ytrans = AZ*BX-BZ*AX;
-		float Ztrans = AX*BY-BX*AY;
-		var output = new Tuple<float,float,float>(Xtrans,Ytrans,Ztrans);
-		return output;
-	}
-	private Tuple<float,float,float> unit(Tuple<float,float,float> point)
-	{
-		float X = point.Item1;
-		float Y = point.Item2;
-		float Z = point.Item3;
-		float Xtrans;
-		float Ytrans;
-		float Ztrans;
-		float L = length(point);
-		if(L == 0)
-		{
-			Xtrans = 0;
-			Ytrans = 0;
-			Ztrans = 0;
-		}
-		else
-		{
-			Xtrans = X/L;
-			Ytrans = Y/L;
-			Ztrans = Z/L;
-		}
-		var output = new Tuple<float,float,float>(Xtrans,Ytrans,Ztrans);
-		return output;
-	}
-	private float length(Tuple<float,float,float> point)
-	{
-		float X = point.Item1;
-		float Y = point.Item2;
-		float Z = point.Item3;
-		float L = (float)(Math.Sqrt(((X * X))+((Y * Y))+((Z * Z))));
-		return L;
-	}
-	private Tuple<float,float,float> vecAdd(Tuple<float,float,float> A, Tuple<float,float,float> B)
-	{
-		float AX = A.Item1;
-		float AY = A.Item2;
-		float AZ = A.Item3;
-		float BX = B.Item1;
-		float BY = B.Item2;
-		float BZ = B.Item3;
-		float Xtrans = AX+BX;
-		float Ytrans = AY+BY;
-		float Ztrans = AZ+BZ;
-		var output = new Tuple<float,float,float>(Xtrans,Ytrans,Ztrans);
-		return output;
-	}
-	private Tuple<float,float,float> vecSub(Tuple<float,float,float> A, Tuple<float,float,float> B)
-	{
-		float AX = A.Item1;
-		float AY = A.Item2;
-		float AZ = A.Item3;
-		float BX = B.Item1;
-		float BY = B.Item2;
-		float BZ = B.Item3;
-		float Xtrans = AX-BX;
-		float Ytrans = AY-BY;
-		float Ztrans = AZ-BZ;
-		var output = new Tuple<float,float,float>(Xtrans,Ytrans,Ztrans);
-		return output;
-	}
-	private Tuple<float,float,float> centroid(Tuple<float,float,float> A, Tuple<float,float,float> B, Tuple<float,float,float> C)
-	{
-		float AX = A.Item1;
-		float AY = A.Item2;
-		float AZ = A.Item3;
-		float BX = B.Item1;
-		float BY = B.Item2;
-		float BZ = B.Item3;
-		float CX = C.Item1;
-		float CY = C.Item2;
-		float CZ = C.Item3;
-		float Xtrans = (AX+BX+CX)/3;
-		float Ytrans = (AY+BY+CY)/3;
-		float Ztrans = (AZ+BZ+CZ)/3;
-		var output = new Tuple<float,float,float>(Xtrans,Ytrans,Ztrans);
+		var output = Vector.matVecMult(point,Vector.rotMatrix(angle,axis%3));
 		return output;
 	}
 }
